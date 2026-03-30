@@ -2,7 +2,7 @@ const users = require("../data/users");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const SECRET = "urbanly_secret";
+const SECRET = process.env.JWT_SECRET || "urbanly_secret";
 
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;

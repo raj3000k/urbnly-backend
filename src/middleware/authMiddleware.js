@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const users = require("../data/users");
 
-const SECRET = "urbanly_secret";
+const SECRET = process.env.JWT_SECRET || "urbanly_secret";
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;

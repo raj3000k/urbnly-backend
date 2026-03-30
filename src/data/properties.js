@@ -15,6 +15,8 @@ const properties = [
     available: true,
     verified: true,
     distance: "2.5 km",
+    rating: 4.7,
+    reviewCount: 128,
     description:
       "A bright co-living space designed for young professionals who want a shorter commute, reliable housekeeping, and a social but calm weekday routine.",
     roomType: "Single and twin sharing",
@@ -62,6 +64,8 @@ const properties = [
     available: true,
     verified: false,
     distance: "3.8 km",
+    rating: 4.2,
+    reviewCount: 74,
     description:
       "Budget-friendly PG with practical essentials, a strong neighborhood food scene, and flexible room options for interns and early-career hires.",
     roomType: "Triple and twin sharing",
@@ -109,6 +113,8 @@ const properties = [
     available: true,
     verified: true,
     distance: "4 km",
+    rating: 4.9,
+    reviewCount: 186,
     description:
       "Premium Whitefield stay focused on quieter rooms, better work-from-home ergonomics, and polished common areas for residents who spend time indoors.",
     roomType: "Private rooms",
