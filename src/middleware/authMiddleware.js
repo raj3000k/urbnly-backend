@@ -24,6 +24,8 @@ function authMiddleware(req, res, next) {
       id: user.id,
       name: user.name,
       email: user.email,
+      company: user.company || "",
+      currentPropertyId: user.currentPropertyId || "",
     };
 
     next();

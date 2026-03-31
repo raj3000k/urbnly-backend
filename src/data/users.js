@@ -1,3 +1,86 @@
-const users = [];
+const bcrypt = require("bcryptjs");
+
+const users = [
+  {
+    id: "seed-user-1",
+    name: "Aarav Shah",
+    email: "aarav@infosys.com",
+    company: "Infosys",
+    currentPropertyId: "1",
+    preferences: {
+      sleepSchedule: "early_bird",
+      cleanliness: "high",
+      foodPreference: "veg",
+      socialStyle: "balanced",
+      workMode: "hybrid",
+      budgetPreference: "14000",
+    },
+    password: bcrypt.hashSync("password123", 10),
+  },
+  {
+    id: "seed-user-2",
+    name: "Megha Iyer",
+    email: "megha@infosys.com",
+    company: "Infosys",
+    currentPropertyId: "1",
+    preferences: {
+      sleepSchedule: "early_bird",
+      cleanliness: "high",
+      foodPreference: "veg",
+      socialStyle: "quiet",
+      workMode: "office",
+      budgetPreference: "13000",
+    },
+    password: bcrypt.hashSync("password123", 10),
+  },
+  {
+    id: "seed-user-3",
+    name: "Rohan Bhat",
+    email: "rohan@tcs.com",
+    company: "TCS",
+    currentPropertyId: "2",
+    preferences: {
+      sleepSchedule: "night_owl",
+      cleanliness: "medium",
+      foodPreference: "any",
+      socialStyle: "social",
+      workMode: "office",
+      budgetPreference: "11000",
+    },
+    password: bcrypt.hashSync("password123", 10),
+  },
+  {
+    id: "seed-user-4",
+    name: "Sana Khan",
+    email: "sana@wipro.com",
+    company: "Wipro",
+    currentPropertyId: "3",
+    preferences: {
+      sleepSchedule: "early_bird",
+      cleanliness: "high",
+      foodPreference: "eggetarian",
+      socialStyle: "balanced",
+      workMode: "hybrid",
+      budgetPreference: "15000",
+    },
+    password: bcrypt.hashSync("password123", 10),
+  },
+  {
+    id: "seed-user-5",
+    name: "Dev Patel",
+    email: "dev@infosys.com",
+    company: "Infosys",
+    currentPropertyId: "3",
+    preferences: {
+      sleepSchedule: "early_bird",
+      cleanliness: "high",
+      foodPreference: "veg",
+      socialStyle: "balanced",
+      workMode: "hybrid",
+      budgetPreference: "14500",
+    },
+    password: bcrypt.hashSync("password123", 10),
+  },
+];
 
 module.exports = users;

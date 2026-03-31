@@ -1,9 +1,34 @@
 const express = require("express");
 const router = express.Router();
 const properties = require("../data/properties");
+const users = require("../data/users");
 const authMiddleware = require("../middleware/authMiddleware");
+const optionalAuthMiddleware = require("../middleware/optionalAuthMiddleware");
 
-router.get("/", (req, res) => {
+const enrichProperty = (property, viewer) => {
+  const residents = users.filter((user) => user.currentPropertyId === property.id);
+  const normalizedCompany = viewer?.company?.trim().toLowerCase();
+
+  const colleagues = normalizedCompany
+    ? residents.filter(
+        (resident) =>
+          resident.id !== viewer.id &&
+          resident.company?.trim().toLowerCase() === normalizedCompany
+      )
+    : [];
+
+  return {
+    ...property,
+    socialProof: {
+      residentCount: residents.length,
+      colleaguesCount: colleagues.length,
+      companyName: viewer?.company || "",
+      colleagueNames: colleagues.slice(0, 3).map((resident) => resident.name),
+    },
+  };
+};
+
+router.get("/", optionalAuthMiddleware, (req, res) => {
   const { search, budget, page = 1, limit = 5 } = req.query;
 
   let result = properties;
@@ -33,7 +58,7 @@ router.get("/", (req, res) => {
   const paginated = result.slice(start, end);
 
   res.json({
-    data: paginated,
+    data: paginated.map((property) => enrichProperty(property, req.user)),
     total: result.length,
     page: pageNum,
   });
@@ -149,14 +174,14 @@ router.patch("/:id/availability", authMiddleware, (req, res) => {
   });
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", optionalAuthMiddleware, (req, res) => {
   const property = properties.find((p) => p.id === req.params.id);
 
   if (!property) {
     return res.status(404).json({ message: "Not found" });
   }
 
-  res.json(property);
+  res.json(enrichProperty(property, req.user));
 });
 
 module.exports = router;

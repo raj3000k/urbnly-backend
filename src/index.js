@@ -8,6 +8,7 @@ const wishlistRoutes = require("./routes/wishlistRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const commuteRoutes = require("./routes/commuteRoutes");
 const placesRoutes = require("./routes/placesRoutes");
+const matchRoutes = require("./routes/matchRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +21,7 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/commute", commuteRoutes);
 app.use("/api/places", placesRoutes);
+app.use("/api/matches", matchRoutes);
 
 app.get("/", (req, res) => {
   res.send("URBNLY API Running");
