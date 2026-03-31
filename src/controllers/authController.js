@@ -1,7 +1,6 @@
-const users = require("../data/users");
-const properties = require("../data/properties");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const prisma = require("../lib/prisma");
 const {
   emptyPreferences,
   normalizePreferences,
@@ -15,6 +14,7 @@ const serializeUser = (user) => ({
   email: user.email,
   company: user.company || "",
   currentPropertyId: user.currentPropertyId || "",
+  lookingForRoommate: Boolean(user.lookingForRoommate),
   preferences: normalizePreferences(user.preferences),
 });
 
@@ -35,24 +35,25 @@ exports.register = async (req, res) => {
       .json({ message: "Password must be at least 6 characters long" });
   }
 
-  const existingUser = users.find((u) => u.email === normalizedEmail);
+  const existingUser = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
   if (existingUser) {
     return res.status(400).json({ message: "User already exists" });
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const newUser = {
-    id: Date.now().toString(),
-    name: name.trim(),
-    email: normalizedEmail,
-    company: normalizedCompany,
-    currentPropertyId: "",
-    preferences: emptyPreferences(),
-    password: hashedPassword,
-  };
-
-  users.push(newUser);
+  const newUser = await prisma.user.create({
+    data: {
+      name: name.trim(),
+      email: normalizedEmail,
+      company: normalizedCompany,
+      lookingForRoommate: false,
+      preferences: emptyPreferences(),
+      password: hashedPassword,
+    },
+  });
 
   const token = jwt.sign({ id: newUser.id }, SECRET, { expiresIn: "7d" });
 
@@ -71,7 +72,9 @@ exports.login = async (req, res) => {
     return res.status(400).json({ message: "Email and password are required" });
   }
 
-  const user = users.find((u) => u.email === normalizedEmail);
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
   if (!user) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
@@ -89,8 +92,10 @@ exports.login = async (req, res) => {
   });
 };
 
-exports.getMe = (req, res) => {
-  const user = users.find((item) => item.id === req.user.id);
+exports.getMe = async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+  });
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -101,8 +106,10 @@ exports.getMe = (req, res) => {
   });
 };
 
-exports.updateProfile = (req, res) => {
-  const user = users.find((item) => item.id === req.user.id);
+exports.updateProfile = async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+  });
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -115,26 +122,48 @@ exports.updateProfile = (req, res) => {
     typeof req.body.currentPropertyId === "string"
       ? req.body.currentPropertyId.trim()
       : user.currentPropertyId || "";
+  const lookingForRoommate =
+    typeof req.body.lookingForRoommate === "boolean"
+      ? req.body.lookingForRoommate
+      : Boolean(user.lookingForRoommate);
   const preferences = normalizePreferences(req.body.preferences || user.preferences);
 
   if (!name) {
     return res.status(400).json({ message: "Name is required" });
   }
 
-  if (
-    currentPropertyId &&
-    !properties.some((property) => property.id === currentPropertyId)
-  ) {
-    return res.status(400).json({ message: "Please choose a valid property" });
+  if (currentPropertyId) {
+    const property = await prisma.property.findUnique({
+      where: { id: currentPropertyId },
+      select: { id: true },
+    });
+
+    if (!property) {
+      return res.status(400).json({ message: "Please choose a valid property" });
+    }
   }
 
-  user.name = name;
-  user.company = company;
-  user.currentPropertyId = currentPropertyId;
-  user.preferences = preferences;
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      name,
+      company,
+      lookingForRoommate,
+      preferences,
+      currentProperty: currentPropertyId
+        ? {
+            connect: {
+              id: currentPropertyId,
+            },
+          }
+        : {
+            disconnect: true,
+          },
+    },
+  });
 
   res.json({
     message: "Profile updated successfully",
-    user: serializeUser(user),
+    user: serializeUser(updatedUser),
   });
 };

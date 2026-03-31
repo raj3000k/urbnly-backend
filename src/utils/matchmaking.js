@@ -151,10 +151,10 @@ const buildRoommateMatch = (currentUser, candidate) => {
 
   return {
     userId: candidate.id,
-    name: candidate.name,
-    email: candidate.email,
+    firstName: String(candidate.name || "").trim().split(/\s+/)[0] || "Member",
     company: candidate.company || "",
     currentPropertyId: candidate.currentPropertyId || "",
+    lookingForRoommate: Boolean(candidate.lookingForRoommate),
     score: scoreOutOf100,
     label,
     reasons: reasons.slice(0, 3),

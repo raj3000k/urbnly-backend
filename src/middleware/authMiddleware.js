@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
-const users = require("../data/users");
+const prisma = require("../lib/prisma");
 
 const SECRET = process.env.JWT_SECRET || "urbanly_secret";
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {
@@ -14,7 +14,9 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, SECRET);
-    const user = users.find((item) => item.id === decoded.id);
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid token user" });
@@ -26,9 +28,10 @@ function authMiddleware(req, res, next) {
       email: user.email,
       company: user.company || "",
       currentPropertyId: user.currentPropertyId || "",
+      lookingForRoommate: Boolean(user.lookingForRoommate),
     };
 
-    next();
+    return next();
   } catch {
     return res.status(401).json({ message: "Invalid or expired token" });
   }

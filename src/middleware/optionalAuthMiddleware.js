@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
-const users = require("../data/users");
+const prisma = require("../lib/prisma");
 
 const SECRET = process.env.JWT_SECRET || "urbanly_secret";
 
-function optionalAuthMiddleware(req, _res, next) {
+async function optionalAuthMiddleware(req, _res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {
@@ -15,7 +15,9 @@ function optionalAuthMiddleware(req, _res, next) {
 
   try {
     const decoded = jwt.verify(token, SECRET);
-    const user = users.find((item) => item.id === decoded.id);
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
 
     if (user) {
       req.user = {
@@ -24,13 +26,14 @@ function optionalAuthMiddleware(req, _res, next) {
         email: user.email,
         company: user.company || "",
         currentPropertyId: user.currentPropertyId || "",
+        lookingForRoommate: Boolean(user.lookingForRoommate),
       };
     }
   } catch {
     // Ignore invalid tokens on optional routes and continue as a guest.
   }
 
-  next();
+  return next();
 }
 
 module.exports = optionalAuthMiddleware;

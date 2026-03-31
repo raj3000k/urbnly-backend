@@ -1,6 +1,6 @@
 const express = require("express");
 const axios = require("axios");
-const properties = require("../data/properties");
+const prisma = require("../lib/prisma");
 
 const router = express.Router();
 const GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
@@ -119,9 +119,21 @@ router.post("/", async (req, res) => {
       .json({ message: "Office location or office coordinates are required" });
   }
 
-  const matchedProperties = Array.isArray(propertyIds) && propertyIds.length
-    ? properties.filter((property) => propertyIds.includes(property.id))
-    : properties;
+  const matchedProperties = await prisma.property.findMany({
+    where:
+      Array.isArray(propertyIds) && propertyIds.length
+        ? {
+            id: {
+              in: propertyIds,
+            },
+          }
+        : undefined,
+    select: {
+      id: true,
+      location: true,
+      distance: true,
+    },
+  });
 
   if (!matchedProperties.length) {
     return res.status(404).json({ message: "No matching properties found" });

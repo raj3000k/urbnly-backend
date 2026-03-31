@@ -1,79 +1,62 @@
 const express = require("express");
 const router = express.Router();
-const properties = require("../data/properties");
-const users = require("../data/users");
+const prisma = require("../lib/prisma");
 const authMiddleware = require("../middleware/authMiddleware");
 const optionalAuthMiddleware = require("../middleware/optionalAuthMiddleware");
+const { serializeProperty, propertyInclude } = require("../utils/propertyView");
 
-const enrichProperty = (property, viewer) => {
-  const residents = users.filter((user) => user.currentPropertyId === property.id);
-  const normalizedCompany = viewer?.company?.trim().toLowerCase();
-
-  const colleagues = normalizedCompany
-    ? residents.filter(
-        (resident) =>
-          resident.id !== viewer.id &&
-          resident.company?.trim().toLowerCase() === normalizedCompany
-      )
-    : [];
-
-  return {
-    ...property,
-    socialProof: {
-      residentCount: residents.length,
-      colleaguesCount: colleagues.length,
-      companyName: viewer?.company || "",
-      colleagueNames: colleagues.slice(0, 3).map((resident) => resident.name),
-    },
-  };
-};
-
-router.get("/", optionalAuthMiddleware, (req, res) => {
+router.get("/", optionalAuthMiddleware, async (req, res) => {
   const { search, budget, page = 1, limit = 5 } = req.query;
+  const pageNum = Number(page);
+  const limitNum = Number(limit);
 
-  let result = properties;
+  const where = {};
 
   // Search filter
   if (search) {
-    const s = search.toLowerCase();
-    result = result.filter(
-      (p) =>
-        p.title.toLowerCase().includes(s) ||
-        p.location.toLowerCase().includes(s)
-    );
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { location: { contains: search, mode: "insensitive" } },
+    ];
   }
 
   // Budget filter
   if (budget) {
-    result = result.filter((p) => p.price <= Number(budget));
+    where.price = { lte: Number(budget) };
   }
 
-  // Pagination
-  const pageNum = Number(page);
-  const limitNum = Number(limit);
-
-  const start = (pageNum - 1) * limitNum;
-  const end = start + limitNum;
-
-  const paginated = result.slice(start, end);
+  const [result, total] = await Promise.all([
+    prisma.property.findMany({
+      where,
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
+      orderBy: { createdAt: "desc" },
+      include: propertyInclude,
+    }),
+    prisma.property.count({ where }),
+  ]);
 
   res.json({
-    data: paginated.map((property) => enrichProperty(property, req.user)),
-    total: result.length,
+    data: result.map((property) => serializeProperty(property, req.user)),
+    total,
     page: pageNum,
   });
 });
 
-router.get("/owner/listings", authMiddleware, (req, res) => {
-  const ownerListings = properties.filter((property) => property.ownerId === req.user.id);
+router.get("/owner/listings", authMiddleware, async (req, res) => {
+  const ownerListings = await prisma.property.findMany({
+    where: { ownerId: req.user.id },
+    orderBy: { createdAt: "desc" },
+    include: propertyInclude,
+  });
 
   res.json({
-    data: ownerListings,
+    data: ownerListings.map((property) => serializeProperty(property, req.user)),
     total: ownerListings.length,
   });
 });
 
-router.post("/", authMiddleware, (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   const {
     title,
     location,
@@ -117,42 +100,46 @@ router.post("/", authMiddleware, (req, res) => {
       : normalizedImages[0] ||
         "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80";
 
-  const newProperty = {
-    id: Date.now().toString(),
-    ownerId: req.user.id,
-    title: title.trim(),
-    location: location.trim(),
-    price: numericPrice,
-    image: primaryImage,
-    images: normalizedImages.length ? normalizedImages : [primaryImage],
-    available: true,
-    verified: false,
-    distance: typeof distance === "string" && distance.trim() ? distance.trim() : "TBD",
-    description: description.trim(),
-    roomType: typeof roomType === "string" && roomType.trim() ? roomType.trim() : "Flexible sharing",
-    deposit: numericDeposit,
-    foodIncluded: Boolean(foodIncluded),
-    highlights: Array.isArray(highlights) ? highlights.filter(Boolean) : [],
-    amenities: Array.isArray(amenities) ? amenities.filter(Boolean) : [],
-    houseRules: Array.isArray(houseRules) ? houseRules.filter(Boolean) : [],
-    owner: {
-      name: req.user.name,
-      phone: "Contact via dashboard",
-      responseTime: "Usually replies within a few hours",
-      role: "Owner",
+  const newProperty = await prisma.property.create({
+    data: {
+      ownerId: req.user.id,
+      title: title.trim(),
+      location: location.trim(),
+      price: numericPrice,
+      image: primaryImage,
+      images: normalizedImages.length ? normalizedImages : [primaryImage],
+      available: true,
+      verified: false,
+      distance:
+        typeof distance === "string" && distance.trim() ? distance.trim() : "TBD",
+      description: description.trim(),
+      roomType:
+        typeof roomType === "string" && roomType.trim()
+          ? roomType.trim()
+          : "Flexible sharing",
+      deposit: numericDeposit,
+      foodIncluded: Boolean(foodIncluded),
+      highlights: Array.isArray(highlights) ? highlights.filter(Boolean) : [],
+      amenities: Array.isArray(amenities) ? amenities.filter(Boolean) : [],
+      houseRules: Array.isArray(houseRules) ? houseRules.filter(Boolean) : [],
+      ownerPhone: "Contact via dashboard",
+      ownerResponseTime: "Usually replies within a few hours",
+      ownerRole: "Owner",
     },
-  };
-
-  properties.unshift(newProperty);
+    include: propertyInclude,
+  });
 
   res.status(201).json({
     message: "Property added successfully",
-    property: newProperty,
+    property: serializeProperty(newProperty, req.user),
   });
 });
 
-router.patch("/:id/availability", authMiddleware, (req, res) => {
-  const property = properties.find((item) => item.id === req.params.id);
+router.patch("/:id/availability", authMiddleware, async (req, res) => {
+  const property = await prisma.property.findUnique({
+    where: { id: req.params.id },
+    include: propertyInclude,
+  });
 
   if (!property) {
     return res.status(404).json({ message: "Property not found" });
@@ -166,22 +153,29 @@ router.patch("/:id/availability", authMiddleware, (req, res) => {
     return res.status(400).json({ message: "Availability must be true or false" });
   }
 
-  property.available = req.body.available;
+  const updatedProperty = await prisma.property.update({
+    where: { id: property.id },
+    data: { available: req.body.available },
+    include: propertyInclude,
+  });
 
   res.json({
     message: "Availability updated successfully",
-    property,
+    property: serializeProperty(updatedProperty, req.user),
   });
 });
 
-router.get("/:id", optionalAuthMiddleware, (req, res) => {
-  const property = properties.find((p) => p.id === req.params.id);
+router.get("/:id", optionalAuthMiddleware, async (req, res) => {
+  const property = await prisma.property.findUnique({
+    where: { id: req.params.id },
+    include: propertyInclude,
+  });
 
   if (!property) {
     return res.status(404).json({ message: "Not found" });
   }
 
-  res.json(enrichProperty(property, req.user));
+  res.json(serializeProperty(property, req.user));
 });
 
 module.exports = router;
