@@ -55,7 +55,7 @@ Reason:
 Instead of:
 
 ```js
-const users = require("../data/users");
+// old in-memory data import
 ```
 
 we now do:

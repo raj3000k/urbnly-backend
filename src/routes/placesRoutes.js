@@ -5,6 +5,7 @@ const router = express.Router();
 const GOOGLE_PLACES_AUTOCOMPLETE_URL =
   "https://places.googleapis.com/v1/places:autocomplete";
 const GOOGLE_PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places";
+const GOOGLE_GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 
 function getGoogleMapsKey() {
   return process.env.GOOGLE_MAPS_API_KEY;
@@ -112,6 +113,48 @@ router.post("/details", async (req, res) => {
     res.status(500).json({
       message:
         error instanceof Error ? error.message : "Unable to fetch place details",
+    });
+  }
+});
+
+router.post("/reverse-geocode", async (req, res) => {
+  const { latitude, longitude } = req.body;
+
+  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
+    return res.status(400).json({ message: "Latitude and longitude are required" });
+  }
+
+  const apiKey = getGoogleMapsKey();
+
+  if (!apiKey) {
+    return res.status(400).json({ message: "Google Maps API key is not configured." });
+  }
+
+  try {
+    const response = await axios.get(GOOGLE_GEOCODING_URL, {
+      params: {
+        latlng: `${Number(latitude)},${Number(longitude)}`,
+        key: apiKey,
+      },
+    });
+
+    const result = response.data.results?.[0];
+
+    if (!result) {
+      return res.status(404).json({ message: "Unable to find an address for this location" });
+    }
+
+    res.json({
+      label: result.formatted_address,
+      location: {
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message:
+        error instanceof Error ? error.message : "Unable to reverse geocode location",
     });
   }
 });

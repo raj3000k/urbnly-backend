@@ -1,22 +1,60 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = require("../lib/prisma");
+const { JWT_SECRET } = require("../config/auth");
 const {
   emptyPreferences,
   normalizePreferences,
 } = require("../utils/matchmaking");
 
-const SECRET = process.env.JWT_SECRET || "urbanly_secret";
-
 const serializeUser = (user) => ({
   id: user.id,
   name: user.name,
   email: user.email,
+  role: user.role,
   company: user.company || "",
   currentPropertyId: user.currentPropertyId || "",
   lookingForRoommate: Boolean(user.lookingForRoommate),
   preferences: normalizePreferences(user.preferences),
 });
+
+const issueToken = (userId) => jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: "7d" });
+
+async function authenticateUser(email, password, requiredRole) {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail || !password) {
+    return { status: 400, message: "Email and password are required" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (!user) {
+    return { status: 400, message: "Invalid credentials" };
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return { status: 400, message: "Invalid credentials" };
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return {
+      status: 403,
+      message:
+        requiredRole === "owner"
+          ? "This login is only for property owners"
+          : "This login is only for customers",
+    };
+  }
+
+  return {
+    user,
+    token: issueToken(user.id),
+  };
+}
 
 exports.register = async (req, res) => {
   const { name, email, password, company } = req.body;
@@ -48,6 +86,7 @@ exports.register = async (req, res) => {
     data: {
       name: name.trim(),
       email: normalizedEmail,
+      role: "customer",
       company: normalizedCompany,
       lookingForRoommate: false,
       preferences: emptyPreferences(),
@@ -55,7 +94,7 @@ exports.register = async (req, res) => {
     },
   });
 
-  const token = jwt.sign({ id: newUser.id }, SECRET, { expiresIn: "7d" });
+  const token = issueToken(newUser.id);
 
   res.status(201).json({
     message: "User registered successfully",
@@ -66,29 +105,43 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  const normalizedEmail = email?.trim().toLowerCase();
+  const result = await authenticateUser(email, password);
 
-  if (!normalizedEmail || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
+  if (!result.user) {
+    return res.status(result.status).json({ message: result.message });
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-  });
-  if (!user) {
-    return res.status(400).json({ message: "Invalid credentials" });
-  }
-
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) {
-    return res.status(400).json({ message: "Invalid credentials" });
-  }
-
-  const token = jwt.sign({ id: user.id }, SECRET, { expiresIn: "7d" });
 
   res.json({
-    token,
-    user: serializeUser(user),
+    token: result.token,
+    user: serializeUser(result.user),
+  });
+};
+
+exports.customerLogin = async (req, res) => {
+  const { email, password } = req.body;
+  const result = await authenticateUser(email, password, "customer");
+
+  if (!result.user) {
+    return res.status(result.status).json({ message: result.message });
+  }
+
+  res.json({
+    token: result.token,
+    user: serializeUser(result.user),
+  });
+};
+
+exports.ownerLogin = async (req, res) => {
+  const { email, password } = req.body;
+  const result = await authenticateUser(email, password, "owner");
+
+  if (!result.user) {
+    return res.status(result.status).json({ message: result.message });
+  }
+
+  res.json({
+    token: result.token,
+    user: serializeUser(result.user),
   });
 };
 

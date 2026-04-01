@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../lib/prisma");
-
-const SECRET = process.env.JWT_SECRET || "urbanly_secret";
+const { JWT_SECRET } = require("../config/auth");
 
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -13,7 +12,7 @@ async function authMiddleware(req, res, next) {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
     });
@@ -26,6 +25,7 @@ async function authMiddleware(req, res, next) {
       id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
       company: user.company || "",
       currentPropertyId: user.currentPropertyId || "",
       lookingForRoommate: Boolean(user.lookingForRoommate),

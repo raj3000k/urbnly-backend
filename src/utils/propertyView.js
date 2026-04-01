@@ -1,6 +1,23 @@
 const normalizeStringArray = (value) =>
   Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
 
+const normalizeRoomInventory = (value) =>
+  Array.isArray(value)
+    ? value
+        .filter(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            typeof item.type === "string" &&
+            Number.isFinite(Number(item.count))
+        )
+        .map((item) => ({
+          type: item.type.trim(),
+          count: Number(item.count),
+        }))
+        .filter((item) => item.type && item.count > 0)
+    : [];
+
 const serializeProperty = (property, viewer) => {
   const residents = property.residents || [];
   const interestedCount = residents.length;
@@ -31,6 +48,10 @@ const serializeProperty = (property, viewer) => {
     rating: property.rating,
     reviewCount: property.reviewCount,
     capacity: property.capacity,
+    totalRooms: property.totalRooms,
+    occupiedRooms: property.occupiedRooms,
+    freeRooms: Math.max((property.totalRooms || 0) - (property.occupiedRooms || 0), 0),
+    roomInventory: normalizeRoomInventory(property.roomInventory),
     description: property.description,
     roomType: property.roomType,
     deposit: property.deposit,

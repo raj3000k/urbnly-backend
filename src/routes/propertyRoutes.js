@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../lib/prisma");
 const authMiddleware = require("../middleware/authMiddleware");
+const requireRole = require("../middleware/requireRole");
 const optionalAuthMiddleware = require("../middleware/optionalAuthMiddleware");
 const { serializeProperty, propertyInclude } = require("../utils/propertyView");
 
@@ -43,7 +44,7 @@ router.get("/", optionalAuthMiddleware, async (req, res) => {
   });
 });
 
-router.get("/owner/listings", authMiddleware, async (req, res) => {
+router.get("/owner/listings", authMiddleware, requireRole("owner"), async (req, res) => {
   const ownerListings = await prisma.property.findMany({
     where: { ownerId: req.user.id },
     orderBy: { createdAt: "desc" },
@@ -56,7 +57,7 @@ router.get("/owner/listings", authMiddleware, async (req, res) => {
   });
 });
 
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
   const {
     title,
     location,
@@ -71,6 +72,9 @@ router.post("/", authMiddleware, async (req, res) => {
     highlights,
     amenities,
     houseRules,
+    totalRooms,
+    occupiedRooms,
+    roomInventory,
   } = req.body;
 
   if (!title?.trim() || !location?.trim() || !description?.trim()) {
@@ -81,6 +85,8 @@ router.post("/", authMiddleware, async (req, res) => {
 
   const numericPrice = Number(price);
   const numericDeposit = Number(deposit);
+  const numericTotalRooms = Number(totalRooms);
+  const numericOccupiedRooms = Number(occupiedRooms);
 
   if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
     return res.status(400).json({ message: "Please provide a valid monthly price" });
@@ -88,6 +94,48 @@ router.post("/", authMiddleware, async (req, res) => {
 
   if (!Number.isFinite(numericDeposit) || numericDeposit < 0) {
     return res.status(400).json({ message: "Please provide a valid deposit" });
+  }
+
+  if (!Number.isInteger(numericTotalRooms) || numericTotalRooms <= 0) {
+    return res.status(400).json({ message: "Please provide a valid total room count" });
+  }
+
+  if (!Number.isInteger(numericOccupiedRooms) || numericOccupiedRooms < 0) {
+    return res.status(400).json({ message: "Please provide a valid occupied room count" });
+  }
+
+  if (numericOccupiedRooms > numericTotalRooms) {
+    return res
+      .status(400)
+      .json({ message: "Occupied rooms cannot be greater than total rooms" });
+  }
+
+  const normalizedRoomInventory = Array.isArray(roomInventory)
+    ? roomInventory
+        .filter(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            typeof item.type === "string" &&
+            Number.isInteger(Number(item.count))
+        )
+        .map((item) => ({
+          type: item.type.trim(),
+          count: Number(item.count),
+        }))
+        .filter((item) => item.type && item.count > 0)
+    : [];
+
+  if (normalizedRoomInventory.length === 0) {
+    return res.status(400).json({ message: "Please add at least one room type" });
+  }
+
+  const inventoryTotal = normalizedRoomInventory.reduce((sum, item) => sum + item.count, 0);
+
+  if (inventoryTotal !== numericTotalRooms) {
+    return res.status(400).json({
+      message: "Total rooms must match the sum of all room types",
+    });
   }
 
   const normalizedImages = Array.isArray(images)
@@ -112,6 +160,9 @@ router.post("/", authMiddleware, async (req, res) => {
       verified: false,
       distance:
         typeof distance === "string" && distance.trim() ? distance.trim() : "TBD",
+      totalRooms: numericTotalRooms,
+      occupiedRooms: numericOccupiedRooms,
+      roomInventory: normalizedRoomInventory,
       description: description.trim(),
       roomType:
         typeof roomType === "string" && roomType.trim()
@@ -135,7 +186,7 @@ router.post("/", authMiddleware, async (req, res) => {
   });
 });
 
-router.patch("/:id/availability", authMiddleware, async (req, res) => {
+router.patch("/:id/availability", authMiddleware, requireRole("owner"), async (req, res) => {
   const property = await prisma.property.findUnique({
     where: { id: req.params.id },
     include: propertyInclude,

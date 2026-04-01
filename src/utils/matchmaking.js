@@ -17,21 +17,35 @@ const emptyPreferences = () => ({
   budgetPreference: "",
 });
 
-const normalizePreferences = (preferences = {}) => ({
+const normalizePreferences = (preferences) => {
+  const safePreferences =
+    preferences && typeof preferences === "object" ? preferences : {};
+
+  return {
   sleepSchedule:
-    typeof preferences.sleepSchedule === "string" ? preferences.sleepSchedule.trim() : "",
+    typeof safePreferences.sleepSchedule === "string"
+      ? safePreferences.sleepSchedule.trim()
+      : "",
   cleanliness:
-    typeof preferences.cleanliness === "string" ? preferences.cleanliness.trim() : "",
+    typeof safePreferences.cleanliness === "string"
+      ? safePreferences.cleanliness.trim()
+      : "",
   foodPreference:
-    typeof preferences.foodPreference === "string" ? preferences.foodPreference.trim() : "",
+    typeof safePreferences.foodPreference === "string"
+      ? safePreferences.foodPreference.trim()
+      : "",
   socialStyle:
-    typeof preferences.socialStyle === "string" ? preferences.socialStyle.trim() : "",
-  workMode: typeof preferences.workMode === "string" ? preferences.workMode.trim() : "",
+    typeof safePreferences.socialStyle === "string"
+      ? safePreferences.socialStyle.trim()
+      : "",
+  workMode:
+    typeof safePreferences.workMode === "string" ? safePreferences.workMode.trim() : "",
   budgetPreference:
-    preferences.budgetPreference === "" || preferences.budgetPreference === null
+    safePreferences.budgetPreference === "" || safePreferences.budgetPreference === null
       ? ""
-      : String(preferences.budgetPreference).trim(),
-});
+      : String(safePreferences.budgetPreference || "").trim(),
+  };
+};
 
 const budgetScore = (userBudget, candidateBudget) => {
   const userValue = Number(userBudget);

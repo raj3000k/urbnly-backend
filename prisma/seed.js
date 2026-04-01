@@ -3,7 +3,7 @@ const prisma = require("../src/lib/prisma");
 
 async function main() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Booking", "Wishlist", "Property", "User" RESTART IDENTITY CASCADE;'
+    'TRUNCATE TABLE "Visit", "Booking", "Wishlist", "Property", "User" RESTART IDENTITY CASCADE;'
   );
 
   const hash = async (value) => bcrypt.hash(value, 10);
@@ -13,6 +13,7 @@ async function main() {
       id: "seed-owner-1",
       name: "Nandini Rao",
       email: "nandini@urbanlyhost.com",
+      role: "owner",
       company: "Urbanly Hosts",
       lookingForRoommate: false,
       preferences: null,
@@ -22,6 +23,7 @@ async function main() {
       id: "seed-owner-2",
       name: "Rahul Shetty",
       email: "rahul@urbanlyhost.com",
+      role: "owner",
       company: "Urbanly Hosts",
       lookingForRoommate: false,
       preferences: null,
@@ -31,6 +33,7 @@ async function main() {
       id: "seed-owner-3",
       name: "Priya Menon",
       email: "priya@urbanlyhost.com",
+      role: "owner",
       company: "Urbanly Hosts",
       lookingForRoommate: false,
       preferences: null,
@@ -62,6 +65,13 @@ async function main() {
       rating: 4.7,
       reviewCount: 128,
       capacity: 2,
+      totalRooms: 6,
+      occupiedRooms: 4,
+      roomInventory: [
+        { type: "Single room", count: 2 },
+        { type: "Twin sharing", count: 3 },
+        { type: "Studio", count: 1 },
+      ],
       description:
         "A bright co-living space designed for young professionals who want a shorter commute, reliable housekeeping, and a social but calm weekday routine.",
       roomType: "Single and twin sharing",
@@ -109,6 +119,13 @@ async function main() {
       rating: 4.2,
       reviewCount: 74,
       capacity: 3,
+      totalRooms: 8,
+      occupiedRooms: 5,
+      roomInventory: [
+        { type: "Twin sharing", count: 4 },
+        { type: "Triple sharing", count: 3 },
+        { type: "Single room", count: 1 },
+      ],
       description:
         "Budget-friendly PG with practical essentials, a strong neighborhood food scene, and flexible room options for interns and early-career hires.",
       roomType: "Triple and twin sharing",
@@ -156,6 +173,12 @@ async function main() {
       rating: 4.9,
       reviewCount: 186,
       capacity: 1,
+      totalRooms: 5,
+      occupiedRooms: 3,
+      roomInventory: [
+        { type: "Private room", count: 4 },
+        { type: "Premium suite", count: 1 },
+      ],
       description:
         "Premium Whitefield stay focused on quieter rooms, better work-from-home ergonomics, and polished common areas for residents who spend time indoors.",
       roomType: "Private rooms",
@@ -188,6 +211,7 @@ async function main() {
       id: "seed-user-1",
       name: "Aarav Shah",
       email: "aarav@infosys.com",
+      role: "customer",
       company: "Infosys",
       currentProperty: { connect: { id: "1" } },
       lookingForRoommate: true,
@@ -205,6 +229,7 @@ async function main() {
       id: "seed-user-2",
       name: "Megha Iyer",
       email: "megha@infosys.com",
+      role: "customer",
       company: "Infosys",
       currentProperty: { connect: { id: "1" } },
       lookingForRoommate: true,
@@ -222,6 +247,7 @@ async function main() {
       id: "seed-user-3",
       name: "Rohan Bhat",
       email: "rohan@tcs.com",
+      role: "customer",
       company: "TCS",
       currentProperty: { connect: { id: "2" } },
       lookingForRoommate: true,
@@ -239,6 +265,7 @@ async function main() {
       id: "seed-user-4",
       name: "Sana Khan",
       email: "sana@wipro.com",
+      role: "customer",
       company: "Wipro",
       currentProperty: { connect: { id: "3" } },
       lookingForRoommate: false,
@@ -256,6 +283,7 @@ async function main() {
       id: "seed-user-5",
       name: "Dev Patel",
       email: "dev@infosys.com",
+      role: "customer",
       company: "Infosys",
       currentProperty: { connect: { id: "3" } },
       lookingForRoommate: false,
@@ -274,6 +302,29 @@ async function main() {
   for (const user of residents) {
     await prisma.user.create({ data: user });
   }
+
+  await prisma.visit.createMany({
+    data: [
+      {
+        id: "seed-visit-1",
+        userId: "seed-user-1",
+        propertyId: "1",
+        scheduledFor: new Date(Date.now() + 1000 * 60 * 60 * 24),
+        status: "confirmed",
+        phone: "+91 98765 00111",
+        notes: "Would like to see the twin-sharing room and work lounge.",
+      },
+      {
+        id: "seed-visit-2",
+        userId: "seed-user-3",
+        propertyId: "2",
+        scheduledFor: new Date(Date.now() + 1000 * 60 * 60 * 36),
+        status: "pending",
+        phone: "+91 99880 11223",
+        notes: "Coming after office hours if possible.",
+      },
+    ],
+  });
 }
 
 main()

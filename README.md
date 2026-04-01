@@ -28,7 +28,8 @@ Default backend env:
 
 ```env
 PORT=5000
-JWT_SECRET=urbanly_secret
+JWT_SECRET=replace_with_a_long_random_secret
+CORS_ORIGIN=http://localhost:5173,http://localhost:5174,http://localhost:5175
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 DATABASE_URL=postgresql://urbnly:urbnly@localhost:5432/urbnly?schema=public
 ```
@@ -36,6 +37,7 @@ DATABASE_URL=postgresql://urbnly:urbnly@localhost:5432/urbnly?schema=public
 Notes:
 
 - `GOOGLE_MAPS_API_KEY` is needed for live commute and places autocomplete
+- `CORS_ORIGIN` controls which frontend origins can call the API
 - Razorpay is currently not active in the product flow, so those keys can stay as placeholders for now
 
 ## 3. Start PostgreSQL with Docker
