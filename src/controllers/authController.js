@@ -57,6 +57,14 @@ async function authenticateUser(email, password, requiredRole) {
 }
 
 exports.register = async (req, res) => {
+  return createUser(req, res, "customer");
+};
+
+exports.ownerRegister = async (req, res) => {
+  return createUser(req, res, "owner");
+};
+
+async function createUser(req, res, role) {
   const { name, email, password, company } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
   const normalizedCompany = typeof company === "string" ? company.trim() : "";
@@ -86,10 +94,10 @@ exports.register = async (req, res) => {
     data: {
       name: name.trim(),
       email: normalizedEmail,
-      role: "customer",
+      role,
       company: normalizedCompany,
       lookingForRoommate: false,
-      preferences: emptyPreferences(),
+      preferences: role === "customer" ? emptyPreferences() : null,
       password: hashedPassword,
     },
   });
@@ -97,11 +105,14 @@ exports.register = async (req, res) => {
   const token = issueToken(newUser.id);
 
   res.status(201).json({
-    message: "User registered successfully",
+    message:
+      role === "owner"
+        ? "Owner account created successfully"
+        : "User registered successfully",
     token,
     user: serializeUser(newUser),
   });
-};
+}
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
