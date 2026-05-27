@@ -57,7 +57,7 @@ router.get("/owner/listings", authMiddleware, requireRole("owner"), async (req, 
   });
 });
 
-router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
+function buildPropertyPayload(body) {
   const {
     title,
     location,
@@ -75,12 +75,10 @@ router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
     totalRooms,
     occupiedRooms,
     roomInventory,
-  } = req.body;
+  } = body;
 
   if (!title?.trim() || !location?.trim() || !description?.trim()) {
-    return res
-      .status(400)
-      .json({ message: "Title, location, and description are required" });
+    return { error: "Title, location, and description are required" };
   }
 
   const numericPrice = Number(price);
@@ -89,25 +87,23 @@ router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
   const numericOccupiedRooms = Number(occupiedRooms);
 
   if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
-    return res.status(400).json({ message: "Please provide a valid monthly price" });
+    return { error: "Please provide a valid monthly price" };
   }
 
   if (!Number.isFinite(numericDeposit) || numericDeposit < 0) {
-    return res.status(400).json({ message: "Please provide a valid deposit" });
+    return { error: "Please provide a valid deposit" };
   }
 
   if (!Number.isInteger(numericTotalRooms) || numericTotalRooms <= 0) {
-    return res.status(400).json({ message: "Please provide a valid total room count" });
+    return { error: "Please provide a valid total room count" };
   }
 
   if (!Number.isInteger(numericOccupiedRooms) || numericOccupiedRooms < 0) {
-    return res.status(400).json({ message: "Please provide a valid occupied room count" });
+    return { error: "Please provide a valid occupied room count" };
   }
 
   if (numericOccupiedRooms > numericTotalRooms) {
-    return res
-      .status(400)
-      .json({ message: "Occupied rooms cannot be greater than total rooms" });
+    return { error: "Occupied rooms cannot be greater than total rooms" };
   }
 
   const normalizedRoomInventory = Array.isArray(roomInventory)
@@ -127,15 +123,13 @@ router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
     : [];
 
   if (normalizedRoomInventory.length === 0) {
-    return res.status(400).json({ message: "Please add at least one room type" });
+    return { error: "Please add at least one room type" };
   }
 
   const inventoryTotal = normalizedRoomInventory.reduce((sum, item) => sum + item.count, 0);
 
   if (inventoryTotal !== numericTotalRooms) {
-    return res.status(400).json({
-      message: "Total rooms must match the sum of all room types",
-    });
+    return { error: "Total rooms must match the sum of all room types" };
   }
 
   const normalizedImages = Array.isArray(images)
@@ -148,9 +142,8 @@ router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
       : normalizedImages[0] ||
         "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80";
 
-  const newProperty = await prisma.property.create({
+  return {
     data: {
-      ownerId: req.user.id,
       title: title.trim(),
       location: location.trim(),
       price: numericPrice,
@@ -177,12 +170,59 @@ router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
       ownerResponseTime: "Usually replies within a few hours",
       ownerRole: "Owner",
     },
+  };
+}
+
+router.post("/", authMiddleware, requireRole("owner"), async (req, res) => {
+  const payload = buildPropertyPayload(req.body);
+
+  if (payload.error) {
+    return res.status(400).json({ message: payload.error });
+  }
+
+  const newProperty = await prisma.property.create({
+    data: {
+      ownerId: req.user.id,
+      ...payload.data,
+    },
     include: propertyInclude,
   });
 
   res.status(201).json({
     message: "Property added successfully",
     property: serializeProperty(newProperty, req.user),
+  });
+});
+
+router.patch("/:id", authMiddleware, requireRole("owner"), async (req, res) => {
+  const property = await prisma.property.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, ownerId: true },
+  });
+
+  if (!property) {
+    return res.status(404).json({ message: "Property not found" });
+  }
+
+  if (property.ownerId !== req.user.id) {
+    return res.status(403).json({ message: "You can only edit your own listings" });
+  }
+
+  const payload = buildPropertyPayload(req.body);
+
+  if (payload.error) {
+    return res.status(400).json({ message: payload.error });
+  }
+
+  const updatedProperty = await prisma.property.update({
+    where: { id: property.id },
+    data: payload.data,
+    include: propertyInclude,
+  });
+
+  res.json({
+    message: "Property updated successfully",
+    property: serializeProperty(updatedProperty, req.user),
   });
 });
 
