@@ -3,6 +3,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const requireRole = require("../middleware/requireRole");
 const prisma = require("../lib/prisma");
 const { serializeProperty, propertyInclude } = require("../utils/propertyView");
+const { sendVisitConfirmedEmail } = require("../services/notificationEmails");
 
 const router = express.Router();
 
@@ -150,6 +151,11 @@ router.patch("/:id/status", requireRole("owner"), async (req, res) => {
       property: {
         select: {
           ownerId: true,
+          id: true,
+          title: true,
+          location: true,
+          landmark: true,
+          ownerPhone: true,
         },
       },
       user: {
@@ -193,6 +199,20 @@ router.patch("/:id/status", requireRole("owner"), async (req, res) => {
       },
     },
   });
+
+  if (status === "confirmed" && visit.status !== "confirmed") {
+    sendVisitConfirmedEmail({
+      visit: updatedVisit,
+      user: updatedVisit.user,
+      property: {
+        ...updatedVisit.property,
+        landmark: visit.property.landmark,
+        ownerPhone: visit.property.ownerPhone,
+      },
+    }).catch((error) => {
+      console.error("Failed to send visit confirmation email", error);
+    });
+  }
 
   res.json({
     message: "Visit updated successfully",

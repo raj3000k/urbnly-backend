@@ -7,60 +7,64 @@ datasource db {
 }
 
 model User {
-  id                String     @id @default(cuid())
-  name              String
-  email             String     @unique
-  password          String
-  role              String     @default("customer")
-  company           String?
-  currentPropertyId String?
-  lookingForRoommate Boolean   @default(false)
-  preferences       Json?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  password           String
+  role               String   @default("customer")
+  company            String?
+  currentPropertyId  String?
+  lookingForRoommate Boolean  @default(false)
+  preferences        Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  currentProperty   Property?  @relation("CurrentPropertyResidents", fields: [currentPropertyId], references: [id])
-  ownedProperties   Property[] @relation("OwnerProperties")
-  wishlistEntries   Wishlist[]
-  bookings          Booking[]
-  visits            Visit[]
+  currentProperty           Property?          @relation("CurrentPropertyResidents", fields: [currentPropertyId], references: [id])
+  ownedProperties           Property[]         @relation("OwnerProperties")
+  wishlistEntries           Wishlist[]
+  bookings                  Booking[]
+  visits                    Visit[]
+  sentRoommateInterests     RoommateInterest[] @relation("RoommateInterestRequester")
+  receivedRoommateInterests RoommateInterest[] @relation("RoommateInterestRecipient")
 }
 
 model Property {
-  id                String     @id @default(cuid())
+  id                String   @id @default(cuid())
   ownerId           String
   title             String
   location          String
+  landmark          String   @default("")
   price             Int
   image             String
   images            Json
-  available         Boolean    @default(true)
-  verified          Boolean    @default(false)
+  available         Boolean  @default(true)
+  verified          Boolean  @default(false)
   distance          String
-  rating            Float      @default(0)
-  reviewCount       Int        @default(0)
-  capacity          Int        @default(1)
-  totalRooms        Int        @default(1)
-  occupiedRooms     Int        @default(0)
+  rating            Float    @default(0)
+  reviewCount       Int      @default(0)
+  capacity          Int      @default(1)
+  totalRooms        Int      @default(1)
+  occupiedRooms     Int      @default(0)
   roomInventory     Json?
   description       String
   roomType          String
-  deposit           Int        @default(0)
-  foodIncluded      Boolean    @default(false)
+  deposit           Int      @default(0)
+  foodIncluded      Boolean  @default(false)
   highlights        Json
   amenities         Json
   houseRules        Json
   ownerPhone        String
   ownerResponseTime String
   ownerRole         String
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  owner             User       @relation("OwnerProperties", fields: [ownerId], references: [id])
-  residents         User[]     @relation("CurrentPropertyResidents")
+  owner             User               @relation("OwnerProperties", fields: [ownerId], references: [id])
+  residents         User[]             @relation("CurrentPropertyResidents")
   wishlistEntries   Wishlist[]
   bookings          Booking[]
   visits            Visit[]
+  roommateInterests RoommateInterest[]
 }
 
 model Wishlist {
@@ -68,8 +72,8 @@ model Wishlist {
   propertyId String
   createdAt  DateTime @default(now())
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@id([userId, propertyId])
 }
@@ -87,8 +91,8 @@ model Booking {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model Visit {
@@ -102,6 +106,25 @@ model Visit {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model RoommateInterest {
+  id          String   @id @default(cuid())
+  requesterId String
+  recipientId String
+  propertyId  String
+  status      String   @default("pending")
+  message     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requester User     @relation("RoommateInterestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient User     @relation("RoommateInterestRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  property  Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, recipientId, propertyId])
+  @@index([recipientId, status])
+  @@index([requesterId])
 }

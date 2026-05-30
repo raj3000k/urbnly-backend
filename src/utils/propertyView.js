@@ -39,6 +39,7 @@ const serializeProperty = (property, viewer) => {
     ownerId: property.ownerId,
     title: property.title,
     location: property.location,
+    landmark: property.landmark || "",
     price: property.price,
     image: property.image,
     images: normalizeStringArray(property.images),

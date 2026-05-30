@@ -61,6 +61,7 @@ function buildPropertyPayload(body) {
   const {
     title,
     location,
+    landmark,
     price,
     image,
     images,
@@ -75,6 +76,7 @@ function buildPropertyPayload(body) {
     totalRooms,
     occupiedRooms,
     roomInventory,
+    ownerPhone,
   } = body;
 
   if (!title?.trim() || !location?.trim() || !description?.trim()) {
@@ -146,11 +148,10 @@ function buildPropertyPayload(body) {
     data: {
       title: title.trim(),
       location: location.trim(),
+      landmark: typeof landmark === "string" && landmark.trim() ? landmark.trim() : "",
       price: numericPrice,
       image: primaryImage,
       images: normalizedImages.length ? normalizedImages : [primaryImage],
-      available: true,
-      verified: false,
       distance:
         typeof distance === "string" && distance.trim() ? distance.trim() : "TBD",
       totalRooms: numericTotalRooms,
@@ -166,7 +167,10 @@ function buildPropertyPayload(body) {
       highlights: Array.isArray(highlights) ? highlights.filter(Boolean) : [],
       amenities: Array.isArray(amenities) ? amenities.filter(Boolean) : [],
       houseRules: Array.isArray(houseRules) ? houseRules.filter(Boolean) : [],
-      ownerPhone: "Contact via dashboard",
+      ownerPhone:
+        typeof ownerPhone === "string" && ownerPhone.trim()
+          ? ownerPhone.trim()
+          : "Contact via dashboard",
       ownerResponseTime: "Usually replies within a few hours",
       ownerRole: "Owner",
     },

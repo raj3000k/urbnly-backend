@@ -11,7 +11,7 @@ function getGoogleMapsKey() {
 }
 
 function buildPropertyAddress(property) {
-  return `${property.location}, Bengaluru, Karnataka, India`;
+  return `${[property.landmark, property.location].filter(Boolean).join(", ")}, Bengaluru, Karnataka, India`;
 }
 
 function inferDurationFromDistance(distanceText) {

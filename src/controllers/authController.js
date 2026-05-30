@@ -65,14 +65,30 @@ exports.ownerRegister = async (req, res) => {
 };
 
 async function createUser(req, res, role) {
-  const { name, email, password, company } = req.body;
+  const {
+    name,
+    email,
+    password,
+    company,
+    currentPropertyId,
+    lookingForRoommate,
+    preferences,
+  } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
   const normalizedCompany = typeof company === "string" ? company.trim() : "";
+  const normalizedCurrentPropertyId =
+    typeof currentPropertyId === "string" ? currentPropertyId.trim() : "";
 
   if (!name?.trim() || !normalizedEmail || !password) {
     return res
       .status(400)
       .json({ message: "Name, email, and password are required" });
+  }
+
+  if (role === "customer" && !normalizedCompany) {
+    return res.status(400).json({
+      message: "Please add the company you work at or will be joining",
+    });
   }
 
   if (password.length < 6) {
@@ -88,6 +104,17 @@ async function createUser(req, res, role) {
     return res.status(400).json({ message: "User already exists" });
   }
 
+  if (role === "customer" && normalizedCurrentPropertyId) {
+    const property = await prisma.property.findUnique({
+      where: { id: normalizedCurrentPropertyId },
+      select: { id: true },
+    });
+
+    if (!property) {
+      return res.status(400).json({ message: "Please choose a valid property" });
+    }
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const newUser = await prisma.user.create({
@@ -96,8 +123,16 @@ async function createUser(req, res, role) {
       email: normalizedEmail,
       role,
       company: normalizedCompany,
-      lookingForRoommate: false,
-      preferences: role === "customer" ? emptyPreferences() : null,
+      currentPropertyId:
+        role === "customer" && normalizedCurrentPropertyId
+          ? normalizedCurrentPropertyId
+          : null,
+      lookingForRoommate:
+        role === "customer" && typeof lookingForRoommate === "boolean"
+          ? lookingForRoommate
+          : false,
+      preferences:
+        role === "customer" ? normalizePreferences(preferences || emptyPreferences()) : null,
       password: hashedPassword,
     },
   });

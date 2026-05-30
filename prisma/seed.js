@@ -3,7 +3,7 @@ const prisma = require("../src/lib/prisma");
 
 async function main() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Visit", "Booking", "Wishlist", "Property", "User" RESTART IDENTITY CASCADE;'
+    'TRUNCATE TABLE "RoommateInterest", "Visit", "Booking", "Wishlist", "Property", "User" RESTART IDENTITY CASCADE;'
   );
 
   const hash = async (value) => bcrypt.hash(value, 10);
@@ -51,6 +51,7 @@ async function main() {
       ownerId: "seed-owner-1",
       title: "Local Square PG",
       location: "Whitefield",
+      landmark: "Near ITPL Main Gate, opposite Nexus Shantiniketan",
       price: 12000,
       image:
         "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
@@ -105,6 +106,7 @@ async function main() {
       ownerId: "seed-owner-2",
       title: "Urban Stay PG",
       location: "Marathahalli",
+      landmark: "Behind Kalamandir, close to Marathahalli bridge",
       price: 10000,
       image:
         "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
@@ -159,6 +161,7 @@ async function main() {
       ownerId: "seed-owner-3",
       title: "Local Square PG 2",
       location: "Whitefield",
+      landmark: "Near Hope Farm signal, beside the metro access road",
       price: 14000,
       image:
         "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
